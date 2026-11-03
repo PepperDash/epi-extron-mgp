@@ -1,0 +1,62 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]utput/
+artifacts/
+publish/
+*.nupkg
+*.snupkg
+
+# Crestron build artifacts
+*.cplz
+*.clz
+*.projectinfo
+
+# Logs and diagnostics
+*.log
+*.binlog
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.[Cc]ache
+!?*.[Cc]ache/
+_ReSharper*/
+*.DotSettings.user
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# VS Code (.vscode/ settings, tasks and extensions are shared)
+*.code-workspace
+
+# Code coverage
+coverage*/
+*.coverage
+*.coveragexml
+
+# NuGet
+project.lock.json
+project.fragment.lock.json
+*.nuget.props
+*.nuget.targets
+
+# Secrets and certificates
+*.pfx
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+~$*
+*~
+
+# Vendor manual (Extron copyright) - keep local, do not publish
+docs/*.pdf

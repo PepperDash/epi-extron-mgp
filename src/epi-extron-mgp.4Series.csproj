@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<ProjectType>ProgramLibrary</ProjectType>
+	</PropertyGroup>
+	<!-- Plugin-specific values; shared values (Version, Copyright, Company, ...) are in Directory.Build.props -->
+	<PropertyGroup>
+		<TargetFramework>net8</TargetFramework>
+		<RootNamespace>PepperDash.Essentials.Plugins.Extron.Mgp</RootNamespace>
+		<Deterministic>false</Deterministic>
+		<AssemblyTitle>PepperDash.Essentials.Plugins.Extron.Mgp</AssemblyTitle>
+		<Description>This software is a PepperDash Essentials Plugin for the Extron MGP 641 multi-window processor.</Description>
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+		<OutputPath>bin\$(Configuration)\</OutputPath>
+		<PackageId>PepperDash.Essentials.Plugins.Extron.Mgp</PackageId>
+		<PackageProjectUrl>https://github.com/PepperDash/epi-extron-mgp</PackageProjectUrl>
+		<PackageTags>crestron 4series essentials plugin extron mgp window processor</PackageTags>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<DefineConstants>$(DefineConstants);SERIES4</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Remove="epi-extron-mgp.projectinfo" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="PepperDashEssentials" Version="3.0.0-rc.20">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
+	</ItemGroup>
+</Project>
