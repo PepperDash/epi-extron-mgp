@@ -39,6 +39,9 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			this.mgp = mgp;
 			this.screenName = screenName;
 			Layouts = new ExtronMgpLayoutSelector(LayoutsKey, mgp);
+
+			// Registered now, not with the messengers: rooms look the selector up by key before activation.
+			DeviceManager.AddDevice(Layouts);
 		}
 
 		/// <summary>The screens, built from the model's current layout names</summary>
@@ -80,11 +83,9 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			mgp.RecallLayoutPreset((int)layoutIndex);
 		}
 
-		/// <summary>Registers the layout selector with the device manager and both messengers with Mobile Control</summary>
+		/// <summary>Registers both messengers with Mobile Control</summary>
 		public void RegisterMessengers(IMobileControl controller, IHasScreensWithLayouts owner)
 		{
-			DeviceManager.AddDevice(Layouts);
-
 			controller.AddDeviceMessenger(new IHasScreensWithLayoutsMessenger(mgp.Key + "-screens", "/device/" + mgp.Key, owner));
 			controller.AddDeviceMessenger(new ISelectableItemsMessenger<uint>(LayoutsKey + "-" + controller.Key, "/device/" + LayoutsKey, Layouts, "screen-" + ScreenId));
 		}
