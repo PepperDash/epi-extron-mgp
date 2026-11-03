@@ -4,18 +4,18 @@ using System.Linq;
 
 namespace PepperDash.Essentials.Plugins.Extron.Mgp
 {
-	/// <summary>A configured layout or input: config key, MGP preset slot and optional configured name</summary>
+	/// <summary>A configured layout: config key, MGP window preset slot and optional configured name</summary>
 	public class ExtronMgpPresetDefinition
 	{
 		/// <summary>Config key</summary>
 		public string Id { get; set; }
-		/// <summary>MGP preset slot (1-128)</summary>
+		/// <summary>MGP window preset slot (1-128)</summary>
 		public int Preset { get; set; }
 		/// <summary>Configured name; when empty the name read from the unit (or a fallback) is used</summary>
 		public string Name { get; set; }
 	}
 
-	/// <summary>A selectable layout or input with its resolved display name</summary>
+	/// <summary>A selectable layout with its resolved display name</summary>
 	public class ExtronMgpPresetItem
 	{
 		/// <summary>Config key</summary>
@@ -46,7 +46,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 	}
 
 	/// <summary>
-	/// Hardware-independent state of an MGP 641: current layout, per-window input/mute/freeze, preset names and
+	/// Hardware-independent state of an MGP 641: current layout, per-window mute/freeze, layout names and
 	/// device info, plus the SIS line parser that updates them.  Shared by the real device and the mock.
 	/// Contains no Crestron or Essentials dependencies so it can be unit tested.
 	/// </summary>
@@ -54,16 +54,13 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 	{
 		private class Window
 		{
-			public int InputPreset;
 			public bool Muted;
 			public bool Frozen;
 		}
 
 		private readonly object sync = new object();
 		private readonly List<ExtronMgpPresetDefinition> layoutDefs;
-		private readonly List<ExtronMgpPresetDefinition> inputDefs;
 		private readonly Dictionary<int, string> layoutNames = new Dictionary<int, string>();
-		private readonly Dictionary<int, string> inputNames = new Dictionary<int, string>();
 		private readonly Window[] windows = new Window[ExtronMgpProtocol.WindowCount + 1];
 		private int currentLayout;
 		private bool awaitingUnitName;
@@ -86,10 +83,9 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		public string LastError { get; private set; }
 
 		/// <summary>Constructor</summary>
-		public ExtronMgpModel(IEnumerable<ExtronMgpPresetDefinition> layouts, IEnumerable<ExtronMgpPresetDefinition> inputs)
+		public ExtronMgpModel(IEnumerable<ExtronMgpPresetDefinition> layouts)
 		{
 			layoutDefs = Clean(layouts);
-			inputDefs = Clean(inputs);
 			for (var i = 1; i <= ExtronMgpProtocol.WindowCount; i++) windows[i] = new Window();
 		}
 
@@ -106,14 +102,8 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		/// <summary>Layouts, ordered by preset number</summary>
 		public IList<ExtronMgpPresetItem> Layouts { get { return Build(layoutDefs, layoutNames, "Layout"); } }
 
-		/// <summary>Inputs selectable per window, ordered by preset number</summary>
-		public IList<ExtronMgpPresetItem> Inputs { get { return Build(inputDefs, inputNames, "Input"); } }
-
 		/// <summary>Configured layouts whose name must be read from the unit</summary>
 		public IList<int> LayoutPresetsNeedingName { get { return layoutDefs.Where(d => string.IsNullOrEmpty(d.Name)).Select(d => d.Preset).ToList(); } }
-
-		/// <summary>Configured inputs whose name must be read from the unit</summary>
-		public IList<int> InputPresetsNeedingName { get { return inputDefs.Where(d => string.IsNullOrEmpty(d.Name)).Select(d => d.Preset).ToList(); } }
 
 		private IList<ExtronMgpPresetItem> Build(List<ExtronMgpPresetDefinition> defs, Dictionary<int, string> unitNames, string fallbackPrefix)
 		{
@@ -133,27 +123,13 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		/// <summary>Preset of the layout configured under <paramref name="id"/>; false if unknown</summary>
 		public bool TryGetLayoutPreset(string id, out int preset)
 		{
-			return TryGet(layoutDefs, id, out preset);
-		}
-
-		/// <summary>Preset of the input configured under <paramref name="id"/>; false if unknown</summary>
-		public bool TryGetInputPreset(string id, out int preset)
-		{
-			return TryGet(inputDefs, id, out preset);
-		}
-
-		private static bool TryGet(List<ExtronMgpPresetDefinition> defs, string id, out int preset)
-		{
-			var def = id == null ? null : defs.FirstOrDefault(d => d.Id == id);
+			var def = id == null ? null : layoutDefs.FirstOrDefault(d => d.Id == id);
 			preset = def == null ? 0 : def.Preset;
 			return def != null;
 		}
 
 		/// <summary>Current layout (window preset), 0 when unknown</summary>
 		public int CurrentLayout { get { lock (sync) return currentLayout; } }
-
-		/// <summary>Input preset last recalled to <paramref name="window"/> (1-4), 0 when unknown</summary>
-		public int GetInputPreset(int window) { lock (sync) return InRange(window) ? windows[window].InputPreset : 0; }
 
 		/// <summary>Mute state of <paramref name="window"/> (1-4)</summary>
 		public bool GetMute(int window) { lock (sync) return InRange(window) && windows[window].Muted; }
@@ -175,17 +151,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			{
 				if (currentLayout == preset) return;
 				currentLayout = preset;
-			}
-			RaiseState();
-		}
-
-		/// <summary>Sets the input preset of a window</summary>
-		public void SetInputPreset(int window, int preset)
-		{
-			lock (sync)
-			{
-				if (!InRange(window) || windows[window].InputPreset == preset) return;
-				windows[window].InputPreset = preset;
 			}
 			RaiseState();
 		}
@@ -219,18 +184,13 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		}
 
 		/// <summary>Sets a layout name as reported by the unit</summary>
-		public void SetLayoutName(int preset, string name) { SetName(layoutNames, preset, name); }
-
-		/// <summary>Sets an input preset name as reported by the unit</summary>
-		public void SetInputName(int preset, string name) { SetName(inputNames, preset, name); }
-
-		private void SetName(Dictionary<int, string> names, int preset, string name)
+		public void SetLayoutName(int preset, string name)
 		{
 			lock (sync)
 			{
 				string existing;
-				if (names.TryGetValue(preset, out existing) && existing == name) return;
-				names[preset] = name;
+				if (layoutNames.TryGetValue(preset, out existing) && existing == name) return;
+				layoutNames[preset] = name;
 			}
 			RaiseState();
 		}
@@ -315,11 +275,10 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 				lock (sync) awaitingUnitName = false;
 				SetInfo(hostName: text);
 			}
-			else if (ExtronMgpProtocol.TryParseInputPreset(line, out a, out b)) SetInputPreset(a, b);
 			else if (ExtronMgpProtocol.TryParseLayout(line, out a)) SetCurrentLayout(a);
 			else if (ExtronMgpProtocol.TryParsePresetName(line, out a, out b, out text))
 			{
-				if (a == 1) SetLayoutName(b, text); else SetInputName(b, text);
+				if (a == 1) SetLayoutName(b, text);
 			}
 			else if (ExtronMgpProtocol.TryParseMute(line, out a, out flag)) SetMute(a, flag);
 			else if (ExtronMgpProtocol.TryParseFreeze(line, out a, out flag)) SetFreeze(a, flag);

@@ -20,10 +20,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		[JsonProperty("layouts")]
 		public Dictionary<string, ExtronMgpPresetConfig> Layouts { get; set; }
 
-		/// <summary>Inputs selectable per window (same shape as the real device)</summary>
-		[JsonProperty("inputs")]
-		public Dictionary<string, ExtronMgpPresetConfig> Inputs { get; set; }
-
 		/// <summary>Start with the communication monitor in error, as if the unit were unreachable</summary>
 		[JsonProperty("simulateOffline")]
 		public bool SimulateOffline { get; set; }
@@ -35,14 +31,13 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 	/// so messenger paths, payloads and joins are identical.  Not for production use.
 	/// </summary>
 	/// <remarks>
-	/// Starts with the first layout recalled and input N in window N (when that many inputs are configured), nothing
-	/// muted or frozen.  Commands are dropped while the simulated comm status is not OK.  Front-panel changes and
+	/// Starts with the first layout recalled and nothing muted or frozen.  Commands are dropped while the simulated comm status is not OK.  Front-panel changes and
 	/// raw responses can be injected from the console with <c>devjson</c>, e.g.
 	/// <c>{"deviceKey":"mgp-01","methodName":"SimulateLine","params":["Prst L 1*005"]}</c>,
-	/// <c>SimulateLayout [5]</c>, <c>SimulateWindowInput [2,3]</c>, <c>SimulateWindowMute [1,true]</c>,
+	/// <c>SimulateLayout [5]</c>, <c>SimulateWindowMute [1,true]</c>,
 	/// <c>SimulateWindowFreeze [1,true]</c> and <c>SetIsOnline [false]</c>.
 	/// </remarks>
-	public class ExtronMgpMock : EssentialsBridgeableDevice, IExtronMgp, IDeviceInfoProvider, ICommunicationMonitor
+	public class ExtronMgpMock : EssentialsBridgeableDevice, IExtronMgp, IRoutingInputs, IDeviceInfoProvider, ICommunicationMonitor
 	{
 		private readonly MockCommunicationMonitor monitor;
 
@@ -51,6 +46,9 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		/// <inheritdoc />
 		public ExtronMgpFeedbacks Feedbacks { get; private set; }
+
+		/// <summary>Routing inputs for Essentials tie lines: hdmiIn1-4 (one per window) and hdmiInBackground</summary>
+		public RoutingPortCollection<RoutingInputPort> InputPorts { get; private set; }
 
 		/// <inheritdoc />
 		public StatusMonitorBase CommunicationMonitor { get { return monitor; } }
@@ -71,17 +69,15 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		public ExtronMgpMock(string key, string name, ExtronMgpMockProperties config)
 			: base(key, name)
 		{
-			Model = new ExtronMgpModel(
-				ExtronMgpPropertiesConfig.ToDefinitions(config.Layouts),
-				ExtronMgpPropertiesConfig.ToDefinitions(config.Inputs));
+			Model = new ExtronMgpModel(ExtronMgpPropertiesConfig.ToDefinitions(config.Layouts));
 			Feedbacks = new ExtronMgpFeedbacks(Model);
+
+			InputPorts = new RoutingPortCollection<RoutingInputPort>();
+			ExtronMgpInputPorts.AddTo(this);
 
 			// Bench-friendly starting state
 			var layouts = Model.Layouts;
 			if (layouts.Count > 0) Model.SetCurrentLayout(layouts[0].Preset);
-			var inputs = Model.Inputs;
-			for (var w = 1; w <= ExtronMgpProtocol.WindowCount && w <= inputs.Count; w++)
-				Model.SetInputPreset(w, inputs[w - 1].Preset);
 
 			Model.SetInfo("MGP-641-MOCK", "192.0.2.41", "00-05-A6-00-00-41", "1.00.0001");
 			DeviceInfo = new DeviceInfo();
@@ -127,27 +123,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		}
 
 		/// <inheritdoc />
-		public void SelectWindowInput(int window, string inputId)
-		{
-			int preset;
-			if (!Model.TryGetInputPreset(inputId, out preset))
-			{
-				this.LogWarning("Unknown input id {0}", inputId);
-				return;
-			}
-			SelectWindowInputPreset(window, preset);
-		}
-
-		/// <inheritdoc />
-		public void SelectWindowInputPreset(int window, int preset)
-		{
-			if (IgnoreWhileOffline("SelectWindowInput")) return;
-			if (!ExtronMgpModel.InRange(window) || preset < 1 || preset > ExtronMgpProtocol.MaxInputPreset) return;
-			this.LogInformation("MOCK window {0} input preset {1}", window, preset);
-			Model.SetInputPreset(window, preset);
-		}
-
-		/// <inheritdoc />
 		public void SetWindowMute(int window, bool mute)
 		{
 			if (IgnoreWhileOffline("SetWindowMute") || !ExtronMgpModel.InRange(window)) return;
@@ -181,9 +156,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		/// <summary>Simulates a layout change made on the unit's front panel</summary>
 		public void SimulateLayout(int preset) { Model.SetCurrentLayout(preset); }
-
-		/// <summary>Simulates an input preset recalled to a window from the front panel</summary>
-		public void SimulateWindowInput(int window, int preset) { Model.SetInputPreset(window, preset); }
 
 		/// <summary>Simulates a window mute change from the front panel</summary>
 		public void SimulateWindowMute(int window, bool muted) { Model.SetMute(window, muted); }

@@ -125,7 +125,8 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		/// <summary>
 		/// Layouts exposed to control, keyed by an id of your choosing.  Each maps to an MGP window preset (1-128).
-		/// A missing <c>name</c> is read from the unit.
+		/// A missing <c>name</c> is read from the unit.  Source routing into the four windows is not configured here:
+		/// the MGP exposes routing input ports (see README) that Essentials ties to an upstream switcher.
 		/// </summary>
 		/// <example>
 		/// <code>
@@ -140,47 +141,10 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		[JsonProperty("layouts")]
 		public Dictionary<string, ExtronMgpPresetConfig> Layouts { get; set; }
 
-		/// <summary>
-		/// Inputs selectable per window, keyed by an id of your choosing.  Each maps to an MGP input preset (1-128) that is
-		/// recalled to the window.  A missing <c>name</c> is read from the unit.
-		/// </summary>
-		/// <example>
-		/// <code>
-		/// "properties": {
-		///		"inputs": {
-		///			"laptop": { "preset": 1, "name": "Laptop" },
-		///			"camera": { "preset": 2, "name": "Camera" }
-		///		}
-		/// }
-		/// </code>
-		/// </example>
-		[JsonProperty("inputs")]
-		public Dictionary<string, ExtronMgpPresetConfig> Inputs { get; set; }
-
-		/// <summary>
-		/// Re-recall each window's last selected input preset after a layout is recalled.  A window preset stores image
-		/// size and position, so a layout recall can undo the sizing an input preset applied.  Defaults to false.
-		/// </summary>
-		/// <example>
-		/// <code>
-		/// "properties": {
-		///		"reapplyInputsAfterLayout": false
-		/// }
-		/// </code>
-		/// </example>
-		[JsonProperty("reapplyInputsAfterLayout")]
-		public bool ReapplyInputsAfterLayout { get; set; }
-
 		/// <summary>Layouts as model definitions (null-safe)</summary>
 		public IEnumerable<ExtronMgpPresetDefinition> LayoutDefinitions()
 		{
 			return ToDefinitions(Layouts);
-		}
-
-		/// <summary>Inputs as model definitions (null-safe)</summary>
-		public IEnumerable<ExtronMgpPresetDefinition> InputDefinitions()
-		{
-			return ToDefinitions(Inputs);
 		}
 
 		public static IEnumerable<ExtronMgpPresetDefinition> ToDefinitions(Dictionary<string, ExtronMgpPresetConfig> source)
@@ -198,17 +162,16 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		public ExtronMgpPropertiesConfig()
 		{
 			Layouts = new Dictionary<string, ExtronMgpPresetConfig>();
-			Inputs = new Dictionary<string, ExtronMgpPresetConfig>();
 		}
 	}
 
 	/// <summary>
-	/// A named reference to an MGP preset slot
+	/// A named reference to an MGP window preset (layout) slot
 	/// </summary>
 	public class ExtronMgpPresetConfig
 	{
 		/// <summary>
-		/// Preset slot on the unit (1-128)
+		/// Window preset slot on the unit (1-128)
 		/// </summary>
 		[JsonProperty("preset")]
 		public int Preset { get; set; }
