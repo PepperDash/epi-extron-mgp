@@ -13,6 +13,7 @@ Controls an Extron MGP 641 four-window processor from PepperDash Essentials 3.0 
 ## Features
 
 * Layout selection: recalls an MGP window preset (1-128)
+* Standard layout interface: implements `IHasScreensWithLayouts` (one screen; each configured layout is a layout whose index is its preset) with the standard Mobile Control messengers, so a UI written for other window processors works unchanged
 * Per-window (1-4) input selection: recalls an MGP input preset (1-128) to the window, for use with an upstream matrix
 * Per-window mute and freeze
 * Device info (IDeviceInfoProvider): hostname, IP address, MAC address and firmware. The MGP has no SIS command for its serial number.
@@ -59,6 +60,16 @@ State posted to the app (on request and on every change):
   "windows": [{ "window": 1, "input": "laptop", "inputPreset": 1, "muted": false, "frozen": false }]
 }
 ```
+
+## Standard screens-with-layouts interface
+
+The device (and the mock) implements the core `IHasScreensWithLayouts`: screen 1, with one layout per configured layout, keyed by its MGP preset. Add `layoutType` (`single`, `double`, `triple` or `quad`) to a layout to list its windows.
+
+| Path | Action | Effect |
+| --- | --- | --- |
+| `/device/{deviceKey}` | `/fullStatus` | Posts `screens` and their layouts |
+| `/device/{deviceKey}-screen-1` | `/fullStatus` | Posts `items` (each with `isSelected`) and `currentItem` |
+| `/device/{deviceKey}-screen-1` | `/selectItem` | Content is the layout key (its preset number); applies the layout |
 
 ## Mock device
 

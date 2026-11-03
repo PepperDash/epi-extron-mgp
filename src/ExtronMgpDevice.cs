@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
@@ -15,7 +16,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 	/// Extron MGP 641 four-window processor.  Controlled over SIS via SSH (22023), Telnet/TCP (23) or RS-232.
 	/// Exposes layout (window preset) selection and per-window input (input preset) selection, plus window mute and freeze.
 	/// </summary>
-	public class ExtronMgpDevice : EssentialsBridgeableDevice, IExtronMgp, IDeviceInfoProvider, ICommunicationMonitor
+	public class ExtronMgpDevice : EssentialsBridgeableDevice, IExtronMgp, IHasScreensWithLayouts, IDeviceInfoProvider, ICommunicationMonitor
 	{
 		private const string CommsDelimiter = "\r\n";
 
@@ -85,6 +86,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 			Model = new ExtronMgpModel(config.LayoutDefinitions(), config.InputDefinitions());
 			Feedbacks = new ExtronMgpFeedbacks(Model);
+			screensView = new ExtronMgpScreens(this, name);
 
 			receiveQueue = new GenericQueue(key + "-rxqueue");
 
@@ -366,6 +368,21 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		#endregion
 
+		#region IHasScreensWithLayouts
+
+		private ExtronMgpScreens screensView;
+
+		/// <inheritdoc />
+		public Dictionary<uint, ScreenInfo> Screens { get { return screensView.Screens; } }
+
+		/// <inheritdoc />
+		public void ApplyLayout(uint screenId, uint layoutIndex)
+		{
+			screensView.ApplyLayout(screenId, layoutIndex);
+		}
+
+		#endregion
+
 		#region Mobile Control
 
 		/// <inheritdoc />
@@ -377,6 +394,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			if (controller == null) return;
 
 			controller.AddDeviceMessenger(new ExtronMgpMessenger(Key + "-mgp-" + controller.Key, "/device/" + Key, this));
+			screensView.RegisterMessengers(controller, this);
 		}
 
 		#endregion

@@ -188,7 +188,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			if (source == null) return Enumerable.Empty<ExtronMgpPresetDefinition>();
 			return source
 				.Where(kvp => kvp.Value != null)
-				.Select(kvp => new ExtronMgpPresetDefinition { Id = kvp.Key, Preset = kvp.Value.Preset, Name = kvp.Value.Name })
+				.Select(kvp => new ExtronMgpPresetDefinition { Id = kvp.Key, Preset = kvp.Value.Preset, Name = kvp.Value.Name, LayoutType = kvp.Value.LayoutType })
 				.ToList();
 		}
 
@@ -218,5 +218,12 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		/// </summary>
 		[JsonProperty("name")]
 		public string Name { get; set; }
+
+		/// <summary>
+		/// Layout type: "single", "double", "triple" or "quad". Optional; sizes the windows listed for the layout
+		/// (1 to 4), and is only used for layouts.
+		/// </summary>
+		[JsonProperty("layoutType")]
+		public string LayoutType { get; set; }
 	}
 }

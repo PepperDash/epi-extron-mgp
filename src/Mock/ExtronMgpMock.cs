@@ -42,7 +42,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 	/// <c>SimulateLayout [5]</c>, <c>SimulateWindowInput [2,3]</c>, <c>SimulateWindowMute [1,true]</c>,
 	/// <c>SimulateWindowFreeze [1,true]</c> and <c>SetIsOnline [false]</c>.
 	/// </remarks>
-	public class ExtronMgpMock : EssentialsBridgeableDevice, IExtronMgp, IDeviceInfoProvider, ICommunicationMonitor
+	public class ExtronMgpMock : EssentialsBridgeableDevice, IExtronMgp, IHasScreensWithLayouts, IDeviceInfoProvider, ICommunicationMonitor
 	{
 		private readonly MockCommunicationMonitor monitor;
 
@@ -75,6 +75,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 				ExtronMgpPropertiesConfig.ToDefinitions(config.Layouts),
 				ExtronMgpPropertiesConfig.ToDefinitions(config.Inputs));
 			Feedbacks = new ExtronMgpFeedbacks(Model);
+			screensView = new ExtronMgpScreens(this, name);
 
 			// Bench-friendly starting state
 			var layouts = Model.Layouts;
@@ -212,6 +213,21 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		#endregion
 
+		#region IHasScreensWithLayouts
+
+		private ExtronMgpScreens screensView;
+
+		/// <inheritdoc />
+		public Dictionary<uint, ScreenInfo> Screens { get { return screensView.Screens; } }
+
+		/// <inheritdoc />
+		public void ApplyLayout(uint screenId, uint layoutIndex)
+		{
+			screensView.ApplyLayout(screenId, layoutIndex);
+		}
+
+		#endregion
+
 		#region Mobile Control and bridge
 
 		/// <inheritdoc />
@@ -223,6 +239,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			if (controller == null) return;
 
 			controller.AddDeviceMessenger(new ExtronMgpMessenger(Key + "-mgp-" + controller.Key, "/device/" + Key, this));
+			screensView.RegisterMessengers(controller, this);
 		}
 
 		/// <inheritdoc />

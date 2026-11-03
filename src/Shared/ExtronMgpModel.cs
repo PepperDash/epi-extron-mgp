@@ -13,6 +13,8 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		public int Preset { get; set; }
 		/// <summary>Configured name; when empty the name read from the unit (or a fallback) is used</summary>
 		public string Name { get; set; }
+		/// <summary>Layout type ("single", "double", "triple", "quad"); null when not configured. Layouts only</summary>
+		public string LayoutType { get; set; }
 	}
 
 	/// <summary>A selectable layout or input with its resolved display name</summary>
@@ -24,6 +26,8 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		public int Preset { get; set; }
 		/// <summary>Display name</summary>
 		public string Name { get; set; }
+		/// <summary>Layout type ("single", "double", "triple", "quad"); null when not configured. Layouts only</summary>
+		public string LayoutType { get; set; }
 	}
 
 	/// <summary>What a received line turned out to be, for the transport to act on</summary>
@@ -125,7 +129,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 					var name = !string.IsNullOrEmpty(d.Name)
 						? d.Name
 						: (unitNames.TryGetValue(d.Preset, out unitName) && !string.IsNullOrEmpty(unitName) ? unitName : fallbackPrefix + " " + d.Preset);
-					return new ExtronMgpPresetItem { Id = d.Id, Preset = d.Preset, Name = name };
+					return new ExtronMgpPresetItem { Id = d.Id, Preset = d.Preset, Name = name, LayoutType = d.LayoutType };
 				}).ToList();
 			}
 		}
