@@ -20,12 +20,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		/// <summary>Recall window preset <paramref name="preset"/> (1-128)</summary>
 		void RecallLayoutPreset(int preset);
 
-		/// <summary>Select the input configured under <paramref name="inputId"/> for <paramref name="window"/> (1-4)</summary>
-		void SelectWindowInput(int window, string inputId);
-
-		/// <summary>Recall input preset <paramref name="preset"/> (1-128) to <paramref name="window"/> (1-4)</summary>
-		void SelectWindowInputPreset(int window, int preset);
-
 		/// <summary>Mute or unmute a window</summary>
 		void SetWindowMute(int window, bool mute);
 

@@ -27,9 +27,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		/// <summary>Window presets (layouts) available on the unit</summary>
 		public const int MaxLayoutPreset = 128;
 
-		/// <summary>Input presets available on the unit</summary>
-		public const int MaxInputPreset = 128;
-
 		#region Commands
 
 		/// <summary>Turns SIS-over-SSH echo off for this connection (control systems should do this on connect)</summary>
@@ -46,12 +43,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		/// <summary>View the name of window preset <paramref name="preset"/></summary>
 		public static string QueryLayoutName(int preset) { return Esc + "1*" + preset + "PNAM" + Cr; }
-
-		/// <summary>Recall input preset <paramref name="preset"/> to <paramref name="window"/></summary>
-		public static string RecallInputPreset(int window, int preset) { return "2*" + window + "*" + preset + "."; }
-
-		/// <summary>View the name of input preset <paramref name="preset"/></summary>
-		public static string QueryInputPresetName(int preset) { return Esc + "2*" + preset + "PNAM" + Cr; }
 
 		/// <summary>Mute (blank) or unmute <paramref name="window"/></summary>
 		public static string SetWindowMute(int window, bool mute) { return window + "*" + (mute ? 1 : 0) + "B"; }
@@ -83,7 +74,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		private static readonly Regex LayoutRecalledRegex = new Regex(@"^(?:1\s*Rpr\s*|Rpr\s*1\s*\*?\s*)(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 		private static readonly Regex CurrentLayoutRegex = new Regex(@"^Prst\s*L\s*1\s*\*\s*(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-		private static readonly Regex InputPresetRecalledRegex = new Regex(@"^(?:2\s*Rpr\s*|Rpr\s*2\s*\*?\s*)(\d+)\s*\*\s*(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 		private static readonly Regex PresetNameRegex = new Regex(@"^Pnam\s*([12])\s*\*\s*(\d+)\s*,\s*(.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 		private static readonly Regex MuteRegex = new Regex(@"^Vmt\s*(\d+)\s*\*\s*(\d)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 		private static readonly Regex FreezeRegex = new Regex(@"^Frz\s*(\d+)\s*\*\s*(\d)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -168,16 +158,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			return m.Success && int.TryParse(m.Groups[1].Value, out preset);
 		}
 
-		/// <summary>Input preset recalled to a window</summary>
-		public static bool TryParseInputPreset(string line, out int window, out int preset)
-		{
-			window = 0;
-			preset = 0;
-			var m = InputPresetRecalledRegex.Match(line);
-			return m.Success && int.TryParse(m.Groups[1].Value, out window) && int.TryParse(m.Groups[2].Value, out preset);
-		}
-
-		/// <summary>Preset name; <paramref name="kind"/> is 1 for window presets (layouts), 2 for input presets</summary>
+		/// <summary>Preset name; <paramref name="kind"/> is 1 for window presets (layouts)</summary>
 		public static bool TryParsePresetName(string line, out int kind, out int preset, out string name)
 		{
 			kind = 0;

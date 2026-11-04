@@ -14,7 +14,7 @@ Controls an Extron MGP 641 four-window processor from PepperDash Essentials 3.0 
 
 * Layout selection: recalls an MGP window preset (1-128)
 * Standard layout interface: implements `IHasScreensWithLayouts` (one screen; each configured layout is a layout whose index is its preset) with the standard Mobile Control messengers, so a UI written for other window processors works unchanged
-* Per-window (1-4) input selection: recalls an MGP input preset (1-128) to the window, for use with an upstream matrix
+* Routing input ports for Essentials tie lines (`hdmiIn1`-`hdmiIn4`, one per window, and `hdmiInBackground`). The MGP does no source switching; routing is done by Essentials with an upstream switcher such as a DM-MD or NVX.
 * Per-window mute and freeze
 * Device info (IDeviceInfoProvider): hostname, IP address, MAC address and firmware. The MGP has no SIS command for its serial number.
 * Mobile Control messenger for the React app, plus an EISC bridge join map
@@ -31,9 +31,8 @@ On connect the plugin sets verbose mode 3 (unsolicited and tagged responses) and
 
 ## Behavior notes
 
-* The four HDMI inputs are fixed to windows 1-4. Selecting an "input" for a window recalls an input preset, which is how an upstream matrix's sources are sized in the window.
-* The unit cannot report which input preset is active in a window. The plugin reports the last preset it recalled and shows `null` for a window after a reconnect.
-* A window preset stores image size and position. Set `reapplyInputsAfterLayout` to re-recall each window's input preset after a layout change.
+* The four HDMI inputs are fixed to windows 1-4: HDMI input N feeds window N. Route a source to a window by tying an upstream output to the matching input port in the tie-line config, for example `"sourceKey": "dmMd8x8-1", "sourcePortKey": "dmOut1", "destinationKey": "mgp-01", "destinationPortKey": "hdmiIn1"`.
+* A layout (window preset) stores window sizes and positions only. Input presets are not used by the plugin.
 * Names missing from config are read from the unit, for configured presets only.
 * Response parsing is lenient; unrecognized lines are logged at debug level, so confirm the formats on first hardware test.
 
@@ -45,7 +44,6 @@ Path: `/device/{deviceKey}`. The status action is `/mgpStatus`, not `/fullStatus
 | --- | --- | --- |
 | `/mgpStatus` | none | Posts full state |
 | `/recallLayout` | `"quad"` or `{"layout":"quad"}` | Recalls the layout configured under that id |
-| `/selectWindowInput` | `{"window":1,"input":"laptop"}` | Recalls the input preset to the window |
 | `/windowMute` | `{"window":1,"state":true}` | Mute; omit `state` to toggle |
 | `/windowFreeze` | `{"window":1,"state":true}` | Freeze; omit `state` to toggle |
 
@@ -56,8 +54,7 @@ State posted to the app (on request and on every change):
   "layouts": [{ "id": "quad", "name": "Quad", "preset": 5 }],
   "currentLayout": "quad",
   "currentLayoutPreset": 5,
-  "inputs": [{ "id": "laptop", "name": "Laptop", "preset": 1 }],
-  "windows": [{ "window": 1, "input": "laptop", "inputPreset": 1, "muted": false, "frozen": false }]
+  "windows": [{ "window": 1, "muted": false, "frozen": false }]
 }
 ```
 
@@ -73,14 +70,14 @@ The device (and the mock) implements the core `IHasScreensWithLayouts`: screen 1
 
 ## Mock device
 
-Set a device's `type` to `extronMgp641Mock` to bench-test rooms, Mobile Control UIs and EISC bridges with no hardware. It uses the same state model, messenger and joins as the real device and needs no `control` object. It starts with the first layout recalled and input N in window N.
+Set a device's `type` to `extronMgp641Mock` to bench-test rooms, Mobile Control UIs and EISC bridges with no hardware. It uses the same state model, messenger and joins as the real device and needs no `control` object. It starts with the first layout recalled, nothing muted or frozen, and the same routing input ports.
 
 ```json
 { "key": "mgp-01", "name": "MGP 641", "type": "extronMgp641Mock",
-  "properties": { "layouts": { "quad": { "preset": 5, "name": "Quad" } }, "inputs": { "laptop": { "preset": 1, "name": "Laptop" } } } }
+  "properties": { "layouts": { "quad": { "preset": 5, "name": "Quad" } } } }
 ```
 
-Inject changes from the console with `devjson`, for example `{"deviceKey":"mgp-01","methodName":"SimulateLayout","params":[5]}`. Methods: `SimulateLine` (feeds a raw SIS response through the real parser), `SimulateLayout`, `SimulateWindowInput`, `SimulateWindowMute`, `SimulateWindowFreeze` and `SetIsOnline`. Commands are dropped while offline.
+Inject changes from the console with `devjson`, for example `{"deviceKey":"mgp-01","methodName":"SimulateLayout","params":[5]}`. Methods: `SimulateLine` (feeds a raw SIS response through the real parser), `SimulateLayout`, `SimulateWindowMute`, `SimulateWindowFreeze` and `SetIsOnline`. Commands are dropped while offline.
 
 ## Tests
 
@@ -88,7 +85,7 @@ Inject changes from the console with `devjson`, for example `{"deviceKey":"mgp-0
 
 ## Build
 
-`dotnet build src/epi-extron-mgp.4Series.csproj` writes the `.cplz` and `.nupkg` to `output/`. Regenerate the documentation below with `dotnet msbuild -t:UpdateReadmeDocs`.
+`dotnet build src/epi-extron-mgp.4Series.csproj` writes the `.cplz` and `.nupkg` to `output/`. The Plugin Documentation section below is regenerated by the Generate README workflow.
 
 ## License
 
@@ -96,7 +93,7 @@ Provided under the MIT license; see [LICENSE.md](LICENSE.md).
 
 ## Plugin Documentation
 
-The sections below are generated from the source code; regenerate with `dotnet msbuild -t:UpdateReadmeDocs`.
+The sections below are generated from the source code; regenerated by the Generate README workflow.
 
 <!-- START Minimum Essentials Framework Versions -->
 ### Minimum Essentials Framework Versions
@@ -138,18 +135,7 @@ The sections below are generated from the source code; regenerate with `dotnet m
                 "preset": 5,
                 "name": "Quad"
             }
-        },
-        "inputs": {
-            "laptop": {
-                "preset": 1,
-                "name": "Laptop"
-            },
-            "camera": {
-                "preset": 2,
-                "name": "Camera"
-            }
-        },
-        "reapplyInputsAfterLayout": false
+        }
     }
 }
 ```
@@ -184,7 +170,6 @@ The sections below are generated from the source code; regenerate with `dotnet m
 | --- | --- | --- |
 | 1 | R | Socket status |
 | 11 | R/W | Layout (MGP window preset 1-128) select & feedback |
-| 21 | R/W | Window 1-4 input (MGP input preset 1-128) select & feedback |
 
 #### Serials
 
@@ -206,6 +191,7 @@ The sections below are generated from the source code; regenerate with `dotnet m
 ### Interfaces
 
 - IExtronMgp
+- IRoutingInputs
 - IDeviceInfoProvider
 - ICommunicationMonitor
 <!-- END Interfaces Implemented -->
@@ -215,8 +201,6 @@ The sections below are generated from the source code; regenerate with `dotnet m
 
 - public void RecallLayout(string layoutId)
 - public void RecallLayoutPreset(int preset)
-- public void SelectWindowInput(int window, string inputId)
-- public void SelectWindowInputPreset(int window, int preset)
 - public void SetWindowMute(int window, bool mute)
 - public void SetWindowFreeze(int window, bool freeze)
 - public void SendText(string text)
@@ -227,28 +211,21 @@ The sections below are generated from the source code; regenerate with `dotnet m
 - public void SendFullStatus(string id = null)
 - public void RecallLayout(string layoutId)
 - public void RecallLayoutPreset(int preset)
-- public void SelectWindowInput(int window, string inputId)
-- public void SelectWindowInputPreset(int window, int preset)
 - public void SetWindowMute(int window, bool mute)
 - public void SetWindowFreeze(int window, bool freeze)
 - public void SetIsOnline(bool online)
 - public void SimulateLine(string line)
 - public void SimulateLayout(int preset)
-- public void SimulateWindowInput(int window, int preset)
 - public void SimulateWindowMute(int window, bool muted)
 - public void SimulateWindowFreeze(int window, bool frozen)
 - public void UpdateDeviceInfo()
 - public bool TryGetLayoutPreset(string id, out int preset)
-- public bool TryGetInputPreset(string id, out int preset)
-- public int GetInputPreset(int window)
 - public bool GetMute(int window)
 - public bool GetFreeze(int window)
 - public void SetCurrentLayout(int preset)
-- public void SetInputPreset(int window, int preset)
 - public void SetMute(int window, bool muted)
 - public void SetFreeze(int window, bool frozen)
 - public void SetLayoutName(int preset, string name)
-- public void SetInputName(int preset, string name)
 - public void SetInfo(string hostName = null, string ipAddress = null, string macAddress = null, string firmwareVersion = null)
 - public void ExpectUnitName()
 - public ExtronMgpLineKind ProcessLine(string rawLine)

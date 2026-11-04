@@ -20,16 +20,12 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		[JsonProperty("currentLayoutPreset")]
 		public int CurrentLayoutPreset { get; set; }
 
-		/// <summary>Inputs the app can select per window</summary>
-		[JsonProperty("inputs")]
-		public ExtronMgpPresetState[] Inputs { get; set; }
-
 		/// <summary>The four windows</summary>
 		[JsonProperty("windows")]
 		public ExtronMgpWindowState[] Windows { get; set; }
 	}
 
-	/// <summary>A selectable layout or input</summary>
+	/// <summary>A selectable layout</summary>
 	public class ExtronMgpPresetState
 	{
 		/// <summary>Config key; pass this back to select it</summary>
@@ -51,14 +47,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		/// <summary>Window number, 1-4</summary>
 		[JsonProperty("window")]
 		public int Window { get; set; }
-
-		/// <summary>Id of the selected input, null when unknown (e.g. after a reconnect: the unit cannot report it)</summary>
-		[JsonProperty("input", NullValueHandling = NullValueHandling.Include)]
-		public string Input { get; set; }
-
-		/// <summary>Input preset number last recalled to the window, 0 when unknown</summary>
-		[JsonProperty("inputPreset")]
-		public int InputPreset { get; set; }
 
 		/// <summary>Window muted</summary>
 		[JsonProperty("muted")]
