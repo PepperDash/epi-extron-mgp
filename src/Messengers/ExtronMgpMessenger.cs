@@ -12,7 +12,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 	/// <list type="bullet">
 	/// <item><c>/mgpStatus</c> - request the full state</item>
 	/// <item><c>/recallLayout</c> - <c>"quad"</c> (layout id) or <c>{"layout":"quad"}</c></item>
-	/// <item><c>/selectWindowInput</c> - <c>{"window":1,"input":"laptop"}</c></item>
 	/// <item><c>/windowMute</c> - <c>{"window":1,"state":true}</c>; omit state to toggle</item>
 	/// <item><c>/windowFreeze</c> - <c>{"window":1,"state":true}</c>; omit state to toggle</item>
 	/// </list>
@@ -45,14 +44,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 				device.RecallLayout(layoutId);
 			});
 
-			AddAction("/selectWindowInput", (id, content) =>
-			{
-				var window = (int?)content?["window"];
-				var input = (string)content?["input"];
-				if (window == null) return;
-				device.SelectWindowInput(window.Value, input);
-			});
-
 			AddAction("/windowMute", (id, content) =>
 			{
 				var window = (int?)content?["window"];
@@ -78,25 +69,17 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		public void SendFullStatus(string id = null)
 		{
 			var layouts = device.Model.Layouts;
-			var inputs = device.Model.Inputs;
 
 			var message = new ExtronMgpStateMessage
 			{
 				Layouts = layouts.Select(l => new ExtronMgpPresetState { Id = l.Id, Name = l.Name, Preset = l.Preset }).ToArray(),
 				CurrentLayoutPreset = device.Model.CurrentLayout,
 				CurrentLayout = layouts.FirstOrDefault(l => l.Preset == device.Model.CurrentLayout)?.Id,
-				Inputs = inputs.Select(i => new ExtronMgpPresetState { Id = i.Id, Name = i.Name, Preset = i.Preset }).ToArray(),
-				Windows = Enumerable.Range(1, ExtronMgpProtocol.WindowCount).Select(w =>
+				Windows = Enumerable.Range(1, ExtronMgpProtocol.WindowCount).Select(w => new ExtronMgpWindowState
 				{
-					var preset = device.Model.GetInputPreset(w);
-					return new ExtronMgpWindowState
-					{
-						Window = w,
-						InputPreset = preset,
-						Input = preset == 0 ? null : inputs.FirstOrDefault(i => i.Preset == preset)?.Id,
-						Muted = device.Model.GetMute(w),
-						Frozen = device.Model.GetFreeze(w)
-					};
+					Window = w,
+					Muted = device.Model.GetMute(w),
+					Frozen = device.Model.GetFreeze(w)
 				}).ToArray()
 			};
 

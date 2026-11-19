@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
@@ -13,9 +14,10 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 {
 	/// <summary>
 	/// Extron MGP 641 four-window processor.  Controlled over SIS via SSH (22023), Telnet/TCP (23) or RS-232.
-	/// Exposes layout (window preset) selection and per-window input (input preset) selection, plus window mute and freeze.
+	/// Exposes layout (window preset) selection with feedback, plus window mute and freeze.  Source routing is done
+	/// upstream and tied to the <see cref="InputPorts"/> by Essentials.
 	/// </summary>
-	public class ExtronMgpDevice : EssentialsBridgeableDevice, IExtronMgp, IDeviceInfoProvider, ICommunicationMonitor
+	public class ExtronMgpDevice : EssentialsBridgeableDevice, IExtronMgp, IHasScreensWithLayouts, IRoutingInputs, IDeviceInfoProvider, ICommunicationMonitor
 	{
 		private const string CommsDelimiter = "\r\n";
 
@@ -32,6 +34,9 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		/// <inheritdoc />
 		public ExtronMgpFeedbacks Feedbacks { get; private set; }
+
+		/// <summary>Routing inputs for Essentials tie lines: hdmiIn1-4 (one per window) and hdmiInBackground</summary>
+		public RoutingPortCollection<RoutingInputPort> InputPorts { get; private set; }
 
 		/// <summary>
 		/// Poll-driven online monitor.  Essentials auto-attaches the core communication monitor messenger.
@@ -83,8 +88,12 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			this.comms = comms;
 			isSsh = config.Control != null && config.Control.Method == eControlMethod.Ssh;
 
-			Model = new ExtronMgpModel(config.LayoutDefinitions(), config.InputDefinitions());
+			Model = new ExtronMgpModel(config.LayoutDefinitions());
 			Feedbacks = new ExtronMgpFeedbacks(Model);
+			screensView = new ExtronMgpScreens(this, name);
+
+			InputPorts = new RoutingPortCollection<RoutingInputPort>();
+			ExtronMgpInputPorts.AddTo(this);
 
 			receiveQueue = new GenericQueue(key + "-rxqueue");
 
@@ -160,40 +169,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			SendText(ExtronMgpProtocol.RecallLayout(preset));
 			Model.SetCurrentLayout(preset);
 
-			if (config.ReapplyInputsAfterLayout)
-			{
-				for (var w = 1; w <= ExtronMgpProtocol.WindowCount; w++)
-				{
-					var inputPreset = Model.GetInputPreset(w);
-					if (inputPreset > 0) SendText(ExtronMgpProtocol.RecallInputPreset(w, inputPreset));
-				}
-			}
-		}
-
-		/// <inheritdoc />
-		public void SelectWindowInput(int window, string inputId)
-		{
-			int preset;
-			if (!Model.TryGetInputPreset(inputId, out preset))
-			{
-				this.LogWarning("Unknown input id {0}", inputId);
-				return;
-			}
-
-			SelectWindowInputPreset(window, preset);
-		}
-
-		/// <inheritdoc />
-		public void SelectWindowInputPreset(int window, int preset)
-		{
-			if (!ExtronMgpModel.InRange(window) || preset < 1 || preset > ExtronMgpProtocol.MaxInputPreset)
-			{
-				this.LogWarning("Window {0} / input preset {1} out of range", window, preset);
-				return;
-			}
-
-			SendText(ExtronMgpProtocol.RecallInputPreset(window, preset));
-			Model.SetInputPreset(window, preset);
 		}
 
 		/// <inheritdoc />
@@ -246,9 +221,8 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			SendText(ExtronMgpProtocol.VerboseMode3());
 			SendText(ExtronMgpProtocol.QueryCurrentLayout());
 
-			// Only configured presets without a configured name are queried, not all 128 slots.
+			// Only configured layouts without a configured name are queried, not all 128 slots.
 			foreach (var p in Model.LayoutPresetsNeedingName) SendText(ExtronMgpProtocol.QueryLayoutName(p));
-			foreach (var p in Model.InputPresetsNeedingName) SendText(ExtronMgpProtocol.QueryInputPresetName(p));
 
 			for (var w = 1; w <= ExtronMgpProtocol.WindowCount; w++)
 			{
@@ -366,6 +340,21 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 
 		#endregion
 
+		#region IHasScreensWithLayouts
+
+		private ExtronMgpScreens screensView;
+
+		/// <inheritdoc />
+		public Dictionary<uint, ScreenInfo> Screens { get { return screensView.Screens; } }
+
+		/// <inheritdoc />
+		public void ApplyLayout(uint screenId, uint layoutIndex)
+		{
+			screensView.ApplyLayout(screenId, layoutIndex);
+		}
+
+		#endregion
+
 		#region Mobile Control
 
 		/// <inheritdoc />
@@ -377,6 +366,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			if (controller == null) return;
 
 			controller.AddDeviceMessenger(new ExtronMgpMessenger(Key + "-mgp-" + controller.Key, "/device/" + Key, this));
+			screensView.RegisterMessengers(controller, this);
 		}
 
 		#endregion

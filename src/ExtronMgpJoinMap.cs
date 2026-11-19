@@ -87,15 +87,6 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 				JoinType = eJoinType.Analog
 			});
 
-		[JoinName("WindowInputSelect")]
-		public JoinDataComplete WindowInputSelect = new JoinDataComplete(
-			new JoinData { JoinNumber = 21, JoinSpan = 4 },
-			new JoinMetadata
-			{
-				Description = "Window 1-4 input (MGP input preset 1-128) select & feedback",
-				JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
-				JoinType = eJoinType.Analog
-			});
 
 		[JoinName("DeviceName")]
 		public JoinDataComplete DeviceName = new JoinDataComplete(

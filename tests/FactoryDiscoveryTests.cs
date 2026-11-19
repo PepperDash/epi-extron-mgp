@@ -54,13 +54,33 @@ public class FactoryDiscoveryTests
             AssemblyFixture.FindSourceForClass(f).Should().MatchRegex("MinimumEssentialsFrameworkVersion = \"\\d+\\.\\d+\\.\\d+\"");
     }
 
-    [Fact]
-    public void Real_And_Mock_Both_Implement_IExtronMgp()
+    [Theory]
+    [InlineData("IExtronMgp")]
+    [InlineData("IRoutingInputs")]
+    public void Real_And_Mock_Both_Implement(string interfaceName)
     {
         foreach (var name in new[] { "ExtronMgpDevice", "ExtronMgpMock" })
         {
             var type = AssemblyFixture.PluginAssembly.GetTypes().Single(t => t.Name == name);
-            type.GetInterfaces().Select(i => i.Name).Should().Contain("IExtronMgp");
+            type.GetInterfaces().Select(i => i.Name).Should().Contain(interfaceName);
+        }
+    }
+
+    [Fact]
+    public void Input_Ports_Are_Hdmi_Windows_And_Background()
+    {
+        var source = AssemblyFixture.FindSourceForClass("ExtronMgpInputPorts")!;
+        source.Should().Contain("\"hdmiIn\" + window");
+        source.Should().Contain("\"hdmiInBackground\"");
+    }
+
+    [Fact]
+    public void No_Input_Selection_Remains_On_The_Control_Surface()
+    {
+        foreach (var name in new[] { "IExtronMgp", "ExtronMgpDevice", "ExtronMgpMock", "ExtronMgpMessenger" })
+        {
+            var type = AssemblyFixture.PluginAssembly.GetTypes().Single(t => t.Name == name);
+            type.GetMethods().Select(m => m.Name).Should().NotContain(n => n.Contains("WindowInput"), name);
         }
     }
 }

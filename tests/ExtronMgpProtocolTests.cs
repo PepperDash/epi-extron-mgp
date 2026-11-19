@@ -13,8 +13,6 @@ public class ExtronMgpProtocolTests
         ExtronMgpProtocol.RecallLayout(5).Should().Be("1*5.");
         ExtronMgpProtocol.QueryCurrentLayout().Should().Be("\u001bL1PRST\r");
         ExtronMgpProtocol.QueryLayoutName(12).Should().Be("\u001b1*12PNAM\r");
-        ExtronMgpProtocol.RecallInputPreset(2, 7).Should().Be("2*2*7.");
-        ExtronMgpProtocol.QueryInputPresetName(7).Should().Be("\u001b2*7PNAM\r");
         ExtronMgpProtocol.SetWindowMute(3, true).Should().Be("3*1B");
         ExtronMgpProtocol.SetWindowMute(3, false).Should().Be("3*0B");
         ExtronMgpProtocol.QueryWindowMute(4).Should().Be("4B");
@@ -39,19 +37,11 @@ public class ExtronMgpProtocolTests
     }
 
     [Theory]
-    [InlineData("2Rpr3*010", 3, 10)]
-    [InlineData("2Rpr 3*10", 3, 10)]
-    [InlineData("Rpr2*3*010", 3, 10)]
-    public void Input_Preset_Responses_Parse(string line, int window, int preset)
+    [InlineData("2Rpr3*010")]
+    [InlineData("Rpr2*3*010")]
+    public void Layout_Parser_Ignores_Other_Preset_Recalls(string line)
     {
-        ExtronMgpProtocol.TryParseInputPreset(line, out var w, out var p).Should().BeTrue();
-        (w, p).Should().Be((window, preset));
-    }
-
-    [Fact]
-    public void Layout_Parser_Does_Not_Match_Input_Preset_Responses()
-    {
-        ExtronMgpProtocol.TryParseLayout("2Rpr3*010", out _).Should().BeFalse();
+        ExtronMgpProtocol.TryParseLayout(line, out _).Should().BeFalse();
     }
 
     [Theory]

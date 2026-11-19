@@ -12,11 +12,6 @@ public class ExtronMgpModelTests
             new ExtronMgpPresetDefinition { Id = "full", Preset = 1, Name = namedLayouts ? "Full" : null },
             new ExtronMgpPresetDefinition { Id = "bad", Preset = 0 },       // dropped: out of range
             new ExtronMgpPresetDefinition { Id = "bad2", Preset = 129 },    // dropped: out of range
-        },
-        new[]
-        {
-            new ExtronMgpPresetDefinition { Id = "laptop", Preset = 10, Name = "Laptop" },
-            new ExtronMgpPresetDefinition { Id = "camera", Preset = 11 },
         });
 
     [Fact]
@@ -28,9 +23,8 @@ public class ExtronMgpModelTests
     [Fact]
     public void Null_Definitions_Are_Tolerated()
     {
-        var m = new ExtronMgpModel(null!, null!);
+        var m = new ExtronMgpModel(null!);
         m.Layouts.Should().BeEmpty();
-        m.Inputs.Should().BeEmpty();
     }
 
     [Fact]
@@ -41,22 +35,25 @@ public class ExtronMgpModelTests
         p.Should().Be(5);
         m.TryGetLayoutPreset("nope", out _).Should().BeFalse();
         m.TryGetLayoutPreset(null!, out _).Should().BeFalse();
-        m.TryGetInputPreset("camera", out p).Should().BeTrue();
-        p.Should().Be(11);
     }
 
     [Fact]
-    public void Names_Fall_Back_From_Config_To_Unit_To_Default()
+    public void Layout_Names_Fall_Back_From_Config_To_Unit_To_Default()
     {
-        var m = NewModel();
-        m.Inputs.Single(i => i.Id == "camera").Name.Should().Be("Input 11");
+        var m = NewModel(namedLayouts: false);
+        m.Layouts.Single(l => l.Id == "quad").Name.Should().Be("Layout 5");
 
-        m.ProcessLine("Pnam2*011,Main Camera").Should().Be(ExtronMgpLineKind.Handled);
-        m.Inputs.Single(i => i.Id == "camera").Name.Should().Be("Main Camera");
+        m.ProcessLine("Pnam1*005,Four Up").Should().Be(ExtronMgpLineKind.Handled);
+        m.Layouts.Single(l => l.Id == "quad").Name.Should().Be("Four Up");
 
         // Configured name wins over the unit's
-        m.ProcessLine("Pnam2*010,Something Else");
-        m.Inputs.Single(i => i.Id == "laptop").Name.Should().Be("Laptop");
+        var named = NewModel();
+        named.ProcessLine("Pnam1*005,Something Else");
+        named.Layouts.Single(l => l.Id == "quad").Name.Should().Be("Quad");
+
+        // Input preset names are not tracked
+        m.ProcessLine("Pnam2*005,Ignored").Should().Be(ExtronMgpLineKind.Handled);
+        m.Layouts.Single(l => l.Id == "quad").Name.Should().Be("Four Up");
     }
 
     [Fact]
@@ -64,7 +61,6 @@ public class ExtronMgpModelTests
     {
         var m = NewModel(namedLayouts: false);
         m.LayoutPresetsNeedingName.Should().Equal(1, 5);
-        m.InputPresetsNeedingName.Should().Equal(11);
         NewModel().LayoutPresetsNeedingName.Should().BeEmpty();
     }
 
@@ -79,12 +75,10 @@ public class ExtronMgpModelTests
     }
 
     [Fact]
-    public void Input_Preset_Feedback_Updates_The_Window()
+    public void Input_Preset_Recalls_Are_Not_Tracked()
     {
         var m = NewModel();
-        m.ProcessLine("2Rpr3*010");
-        m.GetInputPreset(3).Should().Be(10);
-        m.GetInputPreset(1).Should().Be(0);
+        m.ProcessLine("2Rpr3*010").Should().Be(ExtronMgpLineKind.Unhandled);
         m.CurrentLayout.Should().Be(0);
     }
 
@@ -111,9 +105,7 @@ public class ExtronMgpModelTests
     {
         var m = NewModel();
         m.SetMute(5, true);
-        m.SetInputPreset(0, 3);
         m.GetMute(5).Should().BeFalse();
-        m.GetInputPreset(0).Should().Be(0);
     }
 
     [Fact]
