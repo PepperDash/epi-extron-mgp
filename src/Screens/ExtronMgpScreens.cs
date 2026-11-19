@@ -49,6 +49,11 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		{
 			get
 			{
+				// Keyed by preset. The config may name two layouts on the same preset; the last one wins, as in the selectable
+				// items, so reading the screens (and /fullStatus) never throws and both views agree.
+				var layouts = new Dictionary<uint, LayoutInfo>();
+				foreach (var layout in mgp.Model.Layouts) layouts[(uint)layout.Preset] = ToLayoutInfo(layout);
+
 				return new Dictionary<uint, ScreenInfo>
 				{
 					{
@@ -58,7 +63,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 							Enabled = true,
 							Name = screenName,
 							ScreenIndex = (int)ScreenId,
-							Layouts = mgp.Model.Layouts.ToDictionary(l => (uint)l.Preset, ToLayoutInfo)
+							Layouts = layouts
 						}
 					}
 				};
@@ -124,6 +129,7 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 		private readonly IExtronMgp mgp;
 		private Dictionary<uint, ISelectableItem> items = new Dictionary<uint, ISelectableItem>();
 		private uint currentItem;
+		private string itemsSignature;
 
 		/// <inheritdoc />
 		public string Key { get; private set; }
@@ -173,21 +179,37 @@ namespace PepperDash.Essentials.Plugins.Extron.Mgp
 			RebuildItems();
 			CurrentItem = (uint)mgp.Model.CurrentLayout;
 
+			// A layout name reported by the unit (at connect, or when it is renamed) raises the model's state event, not its info
+			// event, so the state event is what keeps the items' names current; it fires for every window change too, so the items
+			// are rebuilt only when a name or the set of layouts actually changed.
 			mgp.Model.StateChanged += (o, a) =>
 			{
+				RebuildItemsIfChanged();
+
 				var current = (uint)mgp.Model.CurrentLayout;
 				if (current != currentItem) CurrentItem = current;
 			};
-			mgp.Model.InfoChanged += (o, a) => RebuildItems();
+		}
+
+		private static string SignatureOf(IEnumerable<ExtronMgpPresetItem> layouts)
+		{
+			return string.Join("|", layouts.Select(l => l.Preset + ":" + l.Name));
+		}
+
+		private void RebuildItemsIfChanged()
+		{
+			if (SignatureOf(mgp.Model.Layouts) != itemsSignature) RebuildItems();
 		}
 
 		private void RebuildItems()
 		{
+			var layouts = mgp.Model.Layouts;
 			var rebuilt = new Dictionary<uint, ISelectableItem>();
-			foreach (var layout in mgp.Model.Layouts)
+			foreach (var layout in layouts)
 			{
 				rebuilt[(uint)layout.Preset] = new LayoutItem(layout.Preset, layout.Name, mgp) { IsSelected = layout.Preset == currentItem };
 			}
+			itemsSignature = SignatureOf(layouts);
 			Items = rebuilt;
 		}
 
